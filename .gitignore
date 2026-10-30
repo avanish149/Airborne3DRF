@@ -1,0 +1,26 @@
+# Real measurements and generated capture data stay local.
+/data/*
+!/data/.gitkeep
+
+# Dependencies, logs, build caches and editor files.
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+coverage/
+
+# Local credentials/configuration and hosting-specific metadata.
+.env
+.env.*
+!.env.example
+.openai/
+.sites-runtime/
+.sites-checkout/
+.sites-checkout-*/
+
+# Generated deployment bundles.
+*.tar
+*.tar.gz
+*.tgz

@@ -1,0 +1,14 @@
+{
+  "name": "airborne-3d-rf-spatial-mapper",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ESP32 LoRa bench telemetry, spatial RF analysis, BLE streaming and local CSV capture",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node dashboard/local-server.mjs",
+    "test": "node dashboard/tests/run-tests.mjs"
+  },
+  "type": "module"
+}

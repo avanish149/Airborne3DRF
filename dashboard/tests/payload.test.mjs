@@ -1,0 +1,16 @@
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+import fs from 'node:fs';
+import {PAYLOAD_HEADER,HEADER,parseCSV,packetStats,normalizePayload,PayloadStream,grid,localize,demo} from '../dist/dataSource.js';
+globalThis.Papa=createRequire(import.meta.url)('../dist/papaparse.min.cjs');
+const fields=(changes={})=>{const base={ms:100,rx_ok:1,beacon_ctr:10,tx_dbm:17,rssi_dbm:-80,rssi_avg:-79,rssi_std:1,snr_db:7,noise_floor_dbm:-110,freq_err_hz:50,fade_margin_db:43,path_loss_db:97,gap_ms:100,lost:0,loss_pct:2,score_rssi:67,score_snr:85,score_pdr:96,score:83,level:'EXCELLENT',lat:10,lon:77,alt_m:10,...changes};return PAYLOAD_HEADER.map(k=>String(base[k]));};
+const rows=[fields(),fields({ms:200,beacon_ctr:13,lost:2}),fields({ms:1200,rx_ok:0,beacon_ctr:13,rssi_dbm:-130,snr_db:-20,score:0,level:'DEAD ZONE'}),fields({ms:1300,beacon_ctr:13}),fields({ms:1400,beacon_ctr:0}),fields({ms:1500,beacon_ctr:2})];
+const capture='=== RF PAYLOAD v2 ===\n'+PAYLOAD_HEADER.join(',')+'\n'+rows.map(r=>r.join(',')).join('\nScores: diagnostic\n')+'\n==== 5s SUMMARY ====\n';
+const parsed=parseCSV(capture);assert.equal(parsed.length,6);assert.equal(parsed[2].received,false);assert.equal(parsed[2].RSSI_dBm,null);assert.equal(parsed[2].rssi_dbm,-130);assert.equal(parsed[0].positionSource,'simulated');assert.equal(parsed[0].score,83);
+assert.deepEqual(packetStats(parsed),{lost:3,received:4,resets:1,percent:100*3/7});
+const allTimeout=[normalizePayload(fields({rx_ok:0,beacon_ctr:-1}))];assert.equal(packetStats(allTimeout).percent,null);assert.equal(grid(localize(allTimeout,10,77),1).vox.length,0);
+const vox=grid(localize(parsed,10,77),1).vox;assert.equal(vox[0].RSSI_dBm,-80);
+assert.throws(()=>normalizePayload(fields({rx_ok:2})));assert.throws(()=>normalizePayload(fields({lat:91})));assert.throws(()=>normalizePayload(fields({score:101})));assert.throws(()=>normalizePayload(fields({ms:''})));assert.throws(()=>parseCSV(PAYLOAD_HEADER.join(',')+'\n100,1,broken'));
+const got=[],statuses=[],stream=new PayloadStream(r=>got.push(r),s=>statuses.push(s));const message=rows[0].join(',')+'\r\n';stream.feed('Booting\n'+message.slice(0,35));assert.equal(got.length,0);stream.feed(message.slice(35));assert.equal(got.length,1);stream.feed('200,1,broken\n');assert.equal(stream.bad,1);assert.equal(got.length,1);stream.feed('x'.repeat(9000));assert.equal(stream.buffer,'');
+const d=demo().slice(0,3),legacy=parseCSV(HEADER.join(',')+'\n'+d.map(r=>HEADER.map(k=>r[k]).join(',')).join('\n'));assert.equal(legacy.length,3);assert.equal(legacy[0].RSSI_dBm,d[0].RSSI_dBm);
+fs.writeFileSync(new URL('../payload-v2-example.csv',import.meta.url),PAYLOAD_HEADER.join(',')+'\n'+rows.map(r=>r.join(',')).join('\n')+'\n');console.log('PASS: v2 import, original schema, sentinel handling, counter gaps/resets/duplicates, all-timeout map, quality fields, validation, serial chunk framing.');
